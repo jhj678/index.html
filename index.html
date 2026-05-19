@@ -78,6 +78,10 @@
         .score-detail-item p {margin: 5px 0;line-height: 1.6;}
         .single-score-input {width: 80px;padding: 5px;margin-left: 10px;border: 1px solid #ddd;border-radius: 4px;}
         #exam-timer {font-size: 24px;color: var(--danger);font-weight:bold;text-align:center;margin-bottom:15px;}
+        /* 新增：验证码样式 */
+        .captcha-row {display: flex;gap: 10px;align-items: center;}
+        #captcha-input {flex: 1;}
+        #captcha-code {width: 100px;height: 40px;line-height: 40px;text-align: center;background: #f3eaff;border: 1px solid #ccc;border-radius: 6px;font-size: 18px;font-weight: bold;color: var(--dark);cursor: pointer;user-select: none;}
     </style>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
@@ -88,6 +92,16 @@
             <div class="title-bar text-center"><h1>课堂教学管理系统</h1></div>
             <div class="form-group"><label>账号：</label><input type="text" id="username" placeholder="请输入账号"></div>
             <div class="form-group"><label>密码：</label><input type="password" id="password" placeholder="请输入密码"></div>
+            
+            <!-- 新增：验证码模块 -->
+            <div class="form-group">
+                <label>验证码：</label>
+                <div class="captcha-row">
+                    <input type="text" id="captcha-input" placeholder="请输入验证码">
+                    <div id="captcha-code" onclick="refreshCaptcha()"></div>
+                </div>
+            </div>
+
             <div class="form-group">
                 <label>角色：</label>
                 <div class="radio-group">
@@ -291,6 +305,23 @@
         let currentExamIndex=0;
         let currentScoreId=0;
         let currentScoreData=null;
+        let currentCaptcha = ''; // 新增：验证码变量
+
+        // 新增：生成随机验证码
+        function generateCaptcha() {
+            const chars = 'ABCDEFGHJKLMNPQRSTWXYZ23456789';
+            let code = '';
+            for(let i=0;i<4;i++){
+                code += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            currentCaptcha = code;
+            document.getElementById('captcha-code').innerText = code;
+        }
+        // 新增：刷新验证码
+        function refreshCaptcha() {
+            generateCaptcha();
+            document.getElementById('captcha-input').value = '';
+        }
 
         function showAlert(msg,t='success'){
             let div=document.createElement('div');
@@ -312,14 +343,20 @@
             return Math.round(cnt/keys.length*full);
         }
 
-        // 登录注册
+        // 登录注册（新增验证码校验）
         function login(){
             let u=document.getElementById('username').value.trim();
             let p=document.getElementById('password').value.trim();
+            let captcha=document.getElementById('captcha-input').value.trim().toUpperCase();
             let r=document.querySelector('input[name="role"]:checked').value;
+            
+            // 验证码校验
             if(!u||!p){showAlert('账号密码不能为空','error');return;}
+            if(!captcha){showAlert('请输入验证码','error');return;}
+            if(captcha!==currentCaptcha){showAlert('验证码错误','error');refreshCaptcha();return;}
+
             let arr=DB.find('users',{username:u,password:p,role:r});
-            if(arr.length==0){showAlert('账号密码错误','error');return;}
+            if(arr.length==0){showAlert('账号密码错误','error');refreshCaptcha();return;}
             currentUser=arr[0];
             document.getElementById('login-page').classList.add('hidden');
             if(r=='teacher'){
@@ -331,6 +368,12 @@
                 document.getElementById('student-welcome').innerText='欢迎 '+currentUser.name+' 同学';
             }
         }
+
+        // 页面加载初始化验证码
+        window.onload = function(){
+            generateCaptcha();
+        }
+
         function register(){
             let u=document.getElementById('reg-username').value.trim();
             let p=document.getElementById('reg-password').value.trim();
@@ -356,6 +399,8 @@
             document.getElementById('student-page').classList.add('hidden');
             document.getElementById('username').value='';
             document.getElementById('password').value='';
+            document.getElementById('captcha-input').value='';
+            refreshCaptcha(); // 退出刷新验证码
         }
 
         // 教师签到
